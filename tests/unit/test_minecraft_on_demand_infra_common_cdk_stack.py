@@ -1,7 +1,7 @@
 import aws_cdk as core
 import aws_cdk.assertions as assertions
 
-from minecraft_on_demand_infra_common_cdk.minecraft_on_demand_infra_common_cdk_stack import MinecraftOnDemandInfraCommonCdkStack
+from src.component import MinecraftOnDemandInfraCommonCdkStack
 
 # example tests. To run these tests, uncomment this file along with the example
 # resource in minecraft_on_demand_infra_common_cdk/minecraft_on_demand_infra_common_cdk_stack.py
