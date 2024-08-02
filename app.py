@@ -8,12 +8,17 @@ from src.component import MinecraftOnDemandInfraCommonCdkStack
 
 load_dotenv()
 
+account = os.getenv("ACCOUNT_ID")
+region = os.getenv("REGION") or "us-east-1"
+
+print(f"account: {account}, region: {region}")
+
 app = cdk.App()
 
 MinecraftOnDemandInfraCommonCdkStack(
     app,
     "MinecraftOnDemandInfraCommonCdkStack",
-    env=cdk.Environment(account=os.getenv("ACCOUNT_ID"), region="us-east-1"),
+    env=cdk.Environment(account=account, region=region),
 )
 
 app.synth()
