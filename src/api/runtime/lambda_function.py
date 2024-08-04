@@ -50,8 +50,9 @@ def lambda_handler(event, context):
             },
             "body": json.dumps(
                 {
-                    "message": "Step function execution started",
-                    "sfn_execution_in_progress ": str(True),
+                    "message": "Workflow execution started",
+                    "server_status": str(False),
+                    "step_function_in_progress ": str(True),
                 }
             ),
         }
@@ -61,8 +62,9 @@ def lambda_handler(event, context):
         "headers": {"Content-Type": "application/json"},
         "body": json.dumps(
             {
-                "message": "Step function already in progress",
-                "step_function_in_progress ": str(False),
+                "message": "Workflow already in progress",
+                "server_status": str(True),
+                "step_function_in_progress ": str(in_progress),
             }
         ),
     }

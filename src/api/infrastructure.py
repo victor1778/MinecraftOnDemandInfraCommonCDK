@@ -38,6 +38,7 @@ class API(Construct):
                 "allow_methods": apigw.Cors.ALL_METHODS,
             },
         )
+
         v1_resource = api.root.add_resource("v1")
 
         launch_resource = v1_resource.add_resource("launch")
