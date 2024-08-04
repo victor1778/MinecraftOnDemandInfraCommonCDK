@@ -11,8 +11,6 @@ load_dotenv()
 account = os.getenv("ACCOUNT_ID")
 region = os.getenv("REGION") or "us-east-1"
 
-print(f"account: {account}, region: {region}")
-
 app = cdk.App()
 
 MinecraftOnDemandInfraCommonCdkStack(

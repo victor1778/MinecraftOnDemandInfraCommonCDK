@@ -6,5 +6,9 @@
     "us-east-1d",
     "us-east-1e",
     "us-east-1f"
-  ]
+  ],
+  "hosted-zone:account=533267195973:domainName=pz-craft.online:region=us-east-1": {
+    "Id": "/hostedzone/Z011356739B84DFFT03SH",
+    "Name": "pz-craft.online."
+  }
 }
