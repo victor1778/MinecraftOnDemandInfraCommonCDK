@@ -1,4 +1,3 @@
-import json
 import os
 
 import boto3
@@ -17,21 +16,10 @@ def lambda_handler(event, context):
 
     table.update_item(
         Key={
-                "id": "0",
-            },
-            UpdateExpression="SET in_progress = :val1",
-            ExpressionAttributeValues={
-                ":val1": str(False),
-            },
-        )
-
-    return {
-        "statusCode": 200,
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(
-            {
-                "message": "Workflow terminated successfully",
-                "step_function_in_progress ": str(False),
-            }
-        ),
-    }
+            "id": "0",
+        },
+        UpdateExpression="SET in_progress = :val1",
+        ExpressionAttributeValues={
+            ":val1": str(False),
+        },
+    )

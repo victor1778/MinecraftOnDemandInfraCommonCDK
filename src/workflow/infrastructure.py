@@ -5,6 +5,7 @@ from aws_cdk import aws_stepfunctions as sfn
 from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
 
+
 class Workflow(Construct):
 
     def __init__(
@@ -40,6 +41,13 @@ class Workflow(Construct):
             )
         )
 
+        self.cleanup_lambda = lambda_.Function(
+            self,
+            "CleanupWorkflowLambda",
+            runtime=lambda_.Runtime.PYTHON_3_12,
+            handler="lambda_function.lambda_handler",
+            code=lambda_.Code.from_asset("src/workflow/runtime"),
+        )
 
         # Workflow Tasks
         run_server_task = tasks.EcsRunTask(
@@ -62,18 +70,17 @@ class Workflow(Construct):
             ],
         )
 
-        self.cleanup_lambda = lambda_.Function(
-            self,
-            "CleanupWorkflowLambda",
-            runtime=lambda_.Runtime.PYTHON_3_12,
-            handler="lambda_function.lambda_handler",
-            code=lambda_.Code.from_asset("src/workflow/runtime"),
-        )
-
         cleanup_task = tasks.LambdaInvoke(
             self,
-            "CleanupTask",
+            "InvokeCleanup",
             lambda_function=self.cleanup_lambda,
+        )
+
+
+        # Add Catch to handle failure and transition to Choice state
+        run_server_task.add_catch(
+            cleanup_task,
+            errors=["States.ALL"]  # Catch all errors
         )
 
         # Define the state machine

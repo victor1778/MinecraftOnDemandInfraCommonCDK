@@ -1,7 +1,14 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+WORLD: str = os.getenv("WORLD")
+MODPACK: str = os.getenv("MODPACK")
+
 CLUSTER_NAME: str = "minecraft"
 SERVICE_NAME: str = "minecraft-server"
 MC_SERVER_CONTAINER_NAME: str = "minecraft-server"
-WATCHDOG_SERVER_CONTAINER_NAME: str = "minecraft-ecsfargate-watchdog"
 DOMAIN_NAME: str = "pz-craft.online"
 DOMAIN_STACK_REGION: str = "us-east-1"
 ECS_VOLUME_NAME: str = "data"

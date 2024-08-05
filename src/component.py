@@ -10,8 +10,6 @@ from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_lambda_event_sources as lambda_event_sources
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_sns as sns
-from aws_cdk import aws_stepfunctions as sfn
-from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
 
 from constants import (
@@ -20,6 +18,8 @@ from constants import (
     ECS_VOLUME_NAME,
     JAVA_EDITION_DOCKER_IMAGE,
     MC_SERVER_CONTAINER_NAME,
+    MODPACK,
+    WORLD,
 )
 from src.api.infrastructure import API
 from src.database.infrastructure import Database
@@ -129,6 +129,7 @@ class MinecraftOnDemandInfraCommonCdkStack(Stack):
             self,
             CLUSTER_NAME,
             vpc=vpc,
+            container_insights=True,
         )
 
         # Create an ECS task definition
@@ -141,8 +142,8 @@ class MinecraftOnDemandInfraCommonCdkStack(Stack):
             ),
             compatibility=ecs.Compatibility.FARGATE,
             task_role=ecs_task_role,
-            memory_mib="4096",
-            cpu="2048",
+            memory_mib="8192",
+            cpu="4096",
         )
 
         task_definition.add_volume(
@@ -172,11 +173,23 @@ class MinecraftOnDemandInfraCommonCdkStack(Stack):
                 "EULA": "TRUE",
                 "MAX_MEMORY": "4G",
                 "VERSION": "1.20.1",
+                "TYPE": "FABRIC",
+                "FABRIC_LOADER_VERSION": "0.15.9",
+                "WORLD": WORLD,
+                "MODPACK": MODPACK,
+                "FABRIC_LOADER_VERSION": "0.15.9",
                 "MOTD": "A §nPZ§r server. Powered by §3Docker§r and §6AWS§r",
                 "OPS": "Viktor1778",
                 "ENABLE_AUTOSTOP": "TRUE",
-                "AUTOSTOP_TIMEOUT_INIT": "30",
-                "AUTOSTOP_TIMEOUT_EST": "30",
+                "AUTOSTOP_TIMEOUT_INIT": "600",
+                "AUTOSTOP_TIMEOUT_EST": "600",
+                "ALLOW_FLIGHT": "TRUE",
+                "DIFFICULTY": "normal",
+                "LEVEL_TYPE": "minecraft:large_biomes",
+                "NETWORK_COMPRESSION_THRESHOLD": "512",
+                "VIEW_DISTANCE": "10",
+                "SIMULATION_DISTANCE": "4",
+                "SYNC_CHUNK_WRITES": "FALSE",
             },
             logging=ecs.AwsLogDriver(
                 log_retention=logs.RetentionDays.THREE_DAYS,
