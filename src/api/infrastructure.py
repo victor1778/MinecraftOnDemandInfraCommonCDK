@@ -20,12 +20,24 @@ class API(Construct):
             self,
             "launcher-lambda",
             runtime=lambda_.Runtime.PYTHON_3_12,
-            handler="lambda_function.lambda_handler",
+            handler="start_function.lambda_handler",
             code=lambda_.Code.from_asset("src/api/runtime"),
             timeout=Duration.seconds(30),
             environment={
                 "TABLE_NAME": dynamodb_table_name,
                 "STATE_MACHINE_ARN": state_machine_arn,
+            },
+        )
+
+        self.stop_lambda = lambda_.Function(
+            self,
+            "stop-lambda",
+            runtime=lambda_.Runtime.PYTHON_3_12,
+            handler="stop_function.lambda_handler",
+            code=lambda_.Code.from_asset("src/api/runtime"),
+            timeout=Duration.seconds(30),
+            environment={
+                "TABLE_NAME": dynamodb_table_name,
             },
         )
 
@@ -41,6 +53,12 @@ class API(Construct):
 
         v1_resource = api.root.add_resource("v1")
 
-        launch_resource = v1_resource.add_resource("launch")
+        server_resource = v1_resource.add_resource("server")
+        start_resource = server_resource.add_resource("start")
+        stop_resource = server_resource.add_resource("stop")
+
         launcher_lambda_integration = apigw.LambdaIntegration(self.launcher_lambda)
-        launch_resource.add_method("GET", launcher_lambda_integration)
+        stop_lambda_integration = apigw.LambdaIntegration(self.stop_lambda)
+        
+        start_resource.add_method("GET", launcher_lambda_integration)
+        stop_resource.add_method("GET", stop_lambda_integration)

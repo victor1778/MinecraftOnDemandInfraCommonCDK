@@ -1,8 +1,6 @@
-from aws_cdk import RemovalPolicy, Stack
+from aws_cdk import Stack
 from aws_cdk import aws_dynamodb as dynamodb
-from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_ecs as ecs
-from aws_cdk import aws_efs as efs
 from aws_cdk import aws_events as events
 from aws_cdk import aws_events_targets as targets
 from aws_cdk import aws_iam as iam
@@ -23,7 +21,8 @@ from constants import (
 )
 from src.api.infrastructure import API
 from src.database.infrastructure import Database
-from src.domain.infrastructure import Domain
+from src.network.infrastructure import Network
+from src.storage.infrastructure import Storage
 from src.workflow.infrastructure import Workflow
 
 
@@ -32,9 +31,15 @@ class MinecraftOnDemandInfraCommonCdkStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        domain = Domain(
+        network = Network(
             self,
             "Network",
+        )
+
+        storage = Storage(
+            self,
+            "Storage",
+            network=network,
         )
 
         """
@@ -43,79 +48,6 @@ class MinecraftOnDemandInfraCommonCdkStack(Stack):
         ******************************
         """
 
-        vpc = ec2.Vpc(
-            self,
-            "VPC",
-            max_azs=3,
-        )
-
-        security_group = ec2.SecurityGroup(
-            self,
-            "ServiceSecurityGroup",
-            vpc=vpc,
-            allow_all_outbound=True,
-            description="Security group for Minecraft server",
-        )
-
-        security_group.add_ingress_rule(
-            peer=ec2.Peer.any_ipv4(),
-            connection=ec2.Port.tcp(25565),
-        )
-
-        security_group.add_ingress_rule(
-            peer=ec2.Peer.any_ipv4(),
-            connection=ec2.Port.tcp(2049),
-            description="Allow NFS traffic",
-        )
-
-        file_system = efs.FileSystem(
-            self,
-            "FileSystem",
-            vpc=vpc,
-            security_group=security_group,
-            removal_policy=RemovalPolicy.DESTROY,
-        )
-
-        access_point = efs.AccessPoint(
-            self,
-            "AccessPoint",
-            file_system=file_system,
-            path="/data",
-            posix_user=efs.PosixUser(
-                uid="1000",
-                gid="1000",
-            ),
-            create_acl=efs.Acl(
-                owner_gid="1000",
-                owner_uid="1000",
-                permissions="0755",
-            ),
-        )
-
-        efs_read_write_policy = iam.Policy(
-            self,
-            "EfsReadWritePolicy",
-            statements=[
-                iam.PolicyStatement(
-                    sid="AllowReadWriteOnEFS",
-                    effect=iam.Effect.ALLOW,
-                    actions=[
-                        "elasticfilesystem:ClientMount",
-                        "elasticfilesystem:ClientWrite",
-                        "elasticfilesystem:DescribeFileSystems",
-                    ],
-                    resources=[
-                        file_system.file_system_arn,
-                    ],
-                    conditions={
-                        "StringEquals": {
-                            "elasticfilesystem:AccessPointArn": access_point.access_point_arn
-                        }
-                    },
-                ),
-            ],
-        )
-
         ecs_task_role = iam.Role(
             self,
             "TaskRole",
@@ -123,12 +55,12 @@ class MinecraftOnDemandInfraCommonCdkStack(Stack):
             description="Role for Minecraft ECS task",
         )
 
-        efs_read_write_policy.attach_to_role(ecs_task_role)
+        storage.efs_read_write_policy.attach_to_role(ecs_task_role)
 
         cluster = ecs.Cluster(
             self,
             CLUSTER_NAME,
-            vpc=vpc,
+            vpc=network.vpc,
             container_insights=True,
         )
 
@@ -142,17 +74,17 @@ class MinecraftOnDemandInfraCommonCdkStack(Stack):
             ),
             compatibility=ecs.Compatibility.FARGATE,
             task_role=ecs_task_role,
-            memory_mib="8192",
-            cpu="4096",
+            memory_mib="6144",
+            cpu="2048",
         )
 
         task_definition.add_volume(
             name=ECS_VOLUME_NAME,
             efs_volume_configuration=ecs.EfsVolumeConfiguration(
-                file_system_id=file_system.file_system_id,
+                file_system_id=storage.file_system.file_system_id,
                 transit_encryption="ENABLED",
                 authorization_config=ecs.AuthorizationConfig(
-                    access_point_id=access_point.access_point_id,
+                    access_point_id=storage.access_point.access_point_id,
                     iam="ENABLED",
                 ),
             ),
@@ -174,20 +106,19 @@ class MinecraftOnDemandInfraCommonCdkStack(Stack):
                 "MAX_MEMORY": "4G",
                 "VERSION": "1.20.1",
                 "TYPE": "FABRIC",
-                "FABRIC_LOADER_VERSION": "0.15.9",
+                "FABRIC_LOADER_VERSION": "0.16.0",
                 "WORLD": WORLD,
                 "MODPACK": MODPACK,
-                "FABRIC_LOADER_VERSION": "0.15.9",
                 "MOTD": "A §nPZ§r server. Powered by §3Docker§r and §6AWS§r",
                 "OPS": "Viktor1778",
                 "ENABLE_AUTOSTOP": "TRUE",
-                "AUTOSTOP_TIMEOUT_INIT": "600",
-                "AUTOSTOP_TIMEOUT_EST": "600",
+                "AUTOSTOP_TIMEOUT_INIT": "300",
+                "AUTOSTOP_TIMEOUT_EST": "180",
                 "ALLOW_FLIGHT": "TRUE",
                 "DIFFICULTY": "normal",
                 "LEVEL_TYPE": "minecraft:large_biomes",
                 "NETWORK_COMPRESSION_THRESHOLD": "512",
-                "VIEW_DISTANCE": "10",
+                "VIEW_DISTANCE": "8",
                 "SIMULATION_DISTANCE": "4",
                 "SYNC_CHUNK_WRITES": "FALSE",
             },
@@ -239,10 +170,10 @@ class MinecraftOnDemandInfraCommonCdkStack(Stack):
             "UpsertRecordLambda",
             runtime=lambda_.Runtime.PYTHON_3_12,
             handler="lambda_function.lambda_handler",
-            code=lambda_.Code.from_asset("./src/lambda/upsert_record"),
+            code=lambda_.Code.from_asset("src/network/runtime"),
             environment={
                 "DOMAIN_NAME": DOMAIN_NAME,
-                "HOSTED_ZONE_ID": domain.hosted_zone.hosted_zone_id,
+                "HOSTED_ZONE_ID": network.hosted_zone.hosted_zone_id,
             },
         )
 
@@ -268,7 +199,7 @@ class MinecraftOnDemandInfraCommonCdkStack(Stack):
                     "route53:ChangeResourceRecordSets",
                 ],
                 resources=[
-                    f"arn:aws:route53:::hostedzone/{domain.hosted_zone.hosted_zone_id}",
+                    f"arn:aws:route53:::hostedzone/{network.hosted_zone.hosted_zone_id}",
                 ],
             )
         )
@@ -279,7 +210,7 @@ class MinecraftOnDemandInfraCommonCdkStack(Stack):
             cluster=cluster,
             task_definition=task_definition,
             container_definition=container_definition,
-            security_group=security_group,
+            security_group=network.security_group,
         )
 
         database = Database(
@@ -301,5 +232,8 @@ class MinecraftOnDemandInfraCommonCdkStack(Stack):
         )
 
         database.dynamodb_table.grant_read_write_data(api.launcher_lambda)
+        database.dynamodb_table.grant_read_write_data(api.stop_lambda)
         database.dynamodb_table.grant_read_write_data(workflow.cleanup_lambda)
+        
         workflow.state_machine.grant_start_execution(api.launcher_lambda)
+        workflow.state_machine.grant_execution(api.stop_lambda, "states:StopExecution")

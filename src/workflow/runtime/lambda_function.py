@@ -20,6 +20,6 @@ def lambda_handler(event, context):
         },
         UpdateExpression="SET in_progress = :val1",
         ExpressionAttributeValues={
-            ":val1": str(False),
+            ":val1": False,
         },
     )

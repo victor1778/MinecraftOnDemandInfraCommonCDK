@@ -1,7 +1,4 @@
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 WORLD: str = os.getenv("WORLD")
 MODPACK: str = os.getenv("MODPACK")
